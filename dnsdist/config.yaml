@@ -28,6 +28,7 @@ ports:
   53/tcp: 53
   53/udp: 53
   8083/tcp: 8083
+  853/tcp: 853
 schema:
   defaults:
     - str
