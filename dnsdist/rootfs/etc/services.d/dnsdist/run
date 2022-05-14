@@ -1,0 +1,6 @@
+#!/usr/bin/with-contenv bashio
+CONFIG="/etc/dnsdist.conf"
+
+# Run dnsmasq
+bashio::log.info "Starting dnsdist..."
+exec dnsdist -C "${CONFIG}" -z < /dev/null

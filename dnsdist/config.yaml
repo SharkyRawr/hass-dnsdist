@@ -1,0 +1,32 @@
+---
+version: 0.0.1
+slug: dnsdist
+name: DNSdist
+description: dnsdist is a highly DNS-, DoS- and abuse-aware loadbalancer.
+url: https://github.com/SharkyRawr/hass-dnsdist
+advanced: true
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+#image: gchr.io
+init: false
+options:
+  defaults:
+    - 8.8.8.8
+    - 8.8.4.4
+  customize:
+    active: false
+    folder: dnsdist
+ports:
+  53/tcp: 53
+  53/udp: 53
+schema:
+  defaults:
+    - str
+  customize:
+    active: bool
+    folder: str
+startup: system
