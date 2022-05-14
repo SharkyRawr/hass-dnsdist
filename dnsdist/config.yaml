@@ -20,13 +20,22 @@ options:
   customize:
     active: false
     folder: dnsdist
+  webserver:
+    active: false
+    password: "changeme"
+    apikey: "changeme"
 ports:
   53/tcp: 53
   53/udp: 53
+  8083/tcp: 8083
 schema:
   defaults:
     - str
   customize:
     active: bool
     folder: str
+  webserver:
+    active: bool
+    password: str
+    apikey: str
 startup: system
