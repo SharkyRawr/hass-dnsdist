@@ -1,5 +1,5 @@
 ---
-version: 0.0.3
+version: 0.0.4
 slug: dnsdist
 name: DNSdist
 description: dnsdist is a highly DNS-, DoS- and abuse-aware loadbalancer.
@@ -13,6 +13,8 @@ arch:
   - i386
 image: sophiefox/hass-dnsdist-{arch}
 init: false
+map:
+  - share
 options:
   defaults:
     - 8.8.8.8
