@@ -83,9 +83,9 @@ jobs:
         id: check
         run: |
           if [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
-             echo "::set-output name=build_arch::true";
-           else
-             echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build";
+            echo "::set-output name=build_arch::true";
+          else
+            echo "${{ matrix.arch }} is not a valid arch for ${{ matrix.addon }}, skipping build";
           fi
       - name: Set build arguments
         if: steps.check.outputs.build_arch == 'true'
@@ -109,5 +109,5 @@ jobs:
             --${{ matrix.arch }} \
             --target /data/${{ matrix.addon }} \
             --addon
-        #env:
-        #  CAS_API_KEY: ${{ secrets.CAS_TOKEN }}
+        # env:
+        #   CAS_API_KEY: ${{ secrets.CAS_TOKEN }}
