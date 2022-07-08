@@ -12,6 +12,7 @@ arch:
   - amd64
   - i386
 image: sophiefox/hass-dnsdist-{arch}
+codenotary: cas@sophie.lgbt
 init: false
 map:
   - share
