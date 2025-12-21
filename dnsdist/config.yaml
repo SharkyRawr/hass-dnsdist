@@ -1,16 +1,13 @@
 ---
-version: 1.9.10-r2
+version: 2.0.2
 slug: dnsdist
 name: DNSdist
 description: dnsdist is a highly DNS-, DoS- and abuse-aware loadbalancer.
 url: https://github.com/SharkyRawr/hass-dnsdist
 advanced: true
 arch:
-  - armhf
-  - armv7
   - aarch64
   - amd64
-  - i386
 image: sophiefox/hass-dnsdist-{arch}
 codenotary: cas@sophie.lgbt
 init: false
