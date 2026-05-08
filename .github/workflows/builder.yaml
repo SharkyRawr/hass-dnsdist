@@ -23,7 +23,7 @@ jobs:
       changed: ${{ steps.changed.outputs.changed }}
       architectures: ${{ steps.info.outputs.architectures }}
       build_matrix: ${{ steps.matrix.outputs.matrix }}
-      version: ${{ steps.info.outputs.version }}
+      version: ${{ steps.sanitize.outputs.version }}
       name: ${{ steps.info.outputs.name }}
       description: ${{ steps.info.outputs.description }}
     steps:
@@ -54,6 +54,13 @@ jobs:
         uses: home-assistant/actions/helpers/info@master
         with:
           path: ./${{ env.ADDON }}
+
+      - name: Sanitize add-on info
+        id: sanitize
+        run: |
+          version='${{ steps.info.outputs.version }}'
+          version=${version//\"/}
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Get build matrix
         id: matrix
