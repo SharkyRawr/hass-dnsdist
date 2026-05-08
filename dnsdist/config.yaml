@@ -1,5 +1,5 @@
 ---
-version: 2.0.2
+version: 2.0.4
 slug: dnsdist
 name: DNSdist
 description: dnsdist is a highly DNS-, DoS- and abuse-aware loadbalancer.
@@ -8,8 +8,7 @@ advanced: true
 arch:
   - aarch64
   - amd64
-image: sophiefox/hass-dnsdist-{arch}
-codenotary: cas@sophie.lgbt
+image: sophiefox/hass-dnsdist
 init: false
 map:
   - share

@@ -5,7 +5,7 @@ FROM $BUILD_FROM
 ENV LANG C.UTF-8
 
 # Setup base
-RUN apk add --no-cache dnsdist=2.0.2-r0 ca-certificates
+RUN apk add --no-cache dnsdist=2.0.4-r0 ca-certificates
 
 # Copy data
 COPY rootfs /

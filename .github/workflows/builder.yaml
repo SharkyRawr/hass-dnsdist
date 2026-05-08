@@ -2,148 +2,131 @@
 # yamllint disable rule:line-length rule:truthy
 name: Build add-on
 
-env:
-  BUILD_ARGS: "--test"
-  MONITORED_FILES: "apparmor.txt build.yaml config.yaml Dockerfile data rootfs"
-
 on:
   pull_request:
     branches: ["main"]
   push:
     branches: ["main"]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
+
+env:
+  ADDON: dnsdist
+  BASE_IMAGE_VERSION: "3.23"
+
+permissions:
+  contents: read
 
 jobs:
   init:
+    name: Initialize build
     runs-on: ubuntu-latest
-    name: Initialize builds
     outputs:
-      changed_files: ${{ steps.changed_files.outputs.all }}
-      changed_addons: ${{ steps.changed_addons.outputs.addons }}
-      changed: ${{ steps.changed_addons.outputs.changed }}
+      changed: ${{ steps.changed.outputs.changed }}
+      architectures: ${{ steps.info.outputs.architectures }}
+      build_matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.info.outputs.version }}
+      name: ${{ steps.info.outputs.name }}
+      description: ${{ steps.info.outputs.description }}
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for changed file detection
+          fetch-depth: 0
 
       - name: Get changed files
         id: changed_files
-        uses: tj-actions/changed-files@v45.0.8  # More reliable and actively maintained
+        uses: tj-actions/changed-files@v47
         with:
           files: |
-            **/*.yaml
-            **/*.yml
-            **/Dockerfile
-            **/rootfs/**
-            **/data/**
-            **/apparmor.txt
+            ${{ env.ADDON }}/**/*.yaml
+            ${{ env.ADDON }}/**/Dockerfile
+            ${{ env.ADDON }}/rootfs/**
 
-      - name: Get add-ons
-        id: addons
+      - name: Check changed add-on
+        id: changed
         run: |
-          declare -a addons
-          for addon in $(find ./ -name config.yaml | cut -d "/" -f2 | sort -u); do
-            addons+=("$addon");
-          done
-          echo "addons=${addons[@]}" >> "$GITHUB_OUTPUT"
-
-      - name: Get changed add-ons
-        id: changed_addons
-        run: |
-          declare -a changed_addons
-          for addon in ${{ steps.addons.outputs.addons }}; do
-            if [[ "${{ steps.changed_files.outputs.all_changed_files }}" =~ $addon ]]; then
-              for file in ${{ env.MONITORED_FILES }}; do
-                  if [[ "${{ steps.changed_files.outputs.all_changed_files }}" =~ $addon/$file ]]; then
-                    if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
-                      changed_addons+=("\"${addon}\",");
-                    fi
-                  fi
-              done
-            fi
-          done
-
-          changed=$(echo ${changed_addons[@]} | rev | cut -c 2- | rev)
-          if [[ -n ${changed} ]]; then
-            echo "Changed add-ons: $changed";
-            echo "changed=true" >> "$GITHUB_OUTPUT";
-            echo "addons=[$changed]" >> "$GITHUB_OUTPUT";
+          if [[ "${{ steps.changed_files.outputs.any_changed }}" == "true" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
-    needs: init
-    runs-on: ubuntu-latest
-    if: needs.init.outputs.changed == 'true'
-    name: Build ${{ matrix.arch }} ${{ matrix.addon }} add-on
-    strategy:
-      fail-fast: false  # Don't cancel other builds if one fails
-      matrix:
-        addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
-        arch: ["aarch64", "amd64"]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Get information
+      - name: Get add-on info
         id: info
         uses: home-assistant/actions/helpers/info@master
         with:
-          path: "./${{ matrix.addon }}"
+          path: ./${{ env.ADDON }}
 
-      - name: Check if architecture is supported
-        id: check
-        run: |
-          if [[ "${{ steps.info.outputs.architectures }}" =~ ${{ matrix.arch }} ]]; then
-             echo "build_arch=true" >> "$GITHUB_OUTPUT";
-             echo "✅ Building ${{ matrix.addon }} for ${{ matrix.arch }}"
-           else
-             echo "⏭️ ${{ matrix.arch }} is not supported for ${{ matrix.addon }}, skipping";
-             echo "build_arch=false" >> "$GITHUB_OUTPUT";
-          fi
-
-      - name: Set build arguments
-        if: steps.check.outputs.build_arch == 'true'
-        run: |
-          if [[ -z "${{ github.head_ref }}" ]] && [[ "${{ github.event_name }}" == "push" ]]; then
-              echo "BUILD_ARGS=--docker-hub-check" >> $GITHUB_ENV;
-          fi
-
-      - name: Login to DockerHub
-        if: steps.check.outputs.build_arch == 'true' && env.BUILD_ARGS == '--docker-hub-check'
-        uses: docker/login-action@v3
+      - name: Get build matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.03.2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          architectures: ${{ steps.info.outputs.architectures }}
+          image-name: hass-dnsdist
+          registry-prefix: docker.io/sophiefox
 
-      - name: Build ${{ matrix.addon }} add-on
-        if: steps.check.outputs.build_arch == 'true'
-        uses: home-assistant/builder@2025.11.0
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: init
+    if: needs.init.outputs.changed == 'true'
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.init.outputs.build_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        uses: home-assistant/builder/actions/build-image@2026.03.2
         with:
-          args: |
-            ${{ env.BUILD_ARGS }} \
-            --${{ matrix.arch }} \
-            --target /data/${{ matrix.addon }} \
-            --addon
-        env:
-          CAS_API_KEY: ${{ secrets.CAS_TOKEN }}
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          container-registry: docker.io
+          container-registry-username: sophiefox
+          context: ./${{ env.ADDON }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.init.outputs.version }}
+            latest
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:${{ env.BASE_IMAGE_VERSION }}
+          labels: |
+            io.hass.type=addon
+            io.hass.name=${{ needs.init.outputs.name }}
+            io.hass.description=${{ needs.init.outputs.description }}
+          push: ${{ github.event_name == 'push' }}
+          version: ${{ needs.init.outputs.version }}
 
-      - name: Upload build logs on failure
-        if: failure() && steps.check.outputs.build_arch == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs-${{ matrix.addon }}-${{ matrix.arch }}
-          path: /tmp/build.log
-          retention-days: 7
-
-  # Optional: Add a job to comment on PR with build results
-  comment:
+  manifest:
+    name: Publish multi-arch manifest
     needs: [init, build]
+    if: needs.init.outputs.changed == 'true' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      packages: write
+    steps:
+      - name: Publish multi-arch manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.03.2
+        with:
+          architectures: ${{ needs.init.outputs.architectures }}
+          container-registry-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          container-registry: docker.io
+          container-registry-username: sophiefox
+          image-name: hass-dnsdist
+          image-tags: |
+            ${{ needs.init.outputs.version }}
+            latest
+          registry-prefix: docker.io/sophiefox
+
+  comment:
+    name: Comment on PR
+    needs: [init, build]
     if: always() && github.event_name == 'pull_request' && needs.init.outputs.changed == 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: Comment PR
         uses: actions/github-script@v7
@@ -160,13 +143,12 @@ jobs:
             const failed = buildJobs.filter(job => job.conclusion === 'failure').length;
             const skipped = buildJobs.filter(job => job.conclusion === 'skipped').length;
 
-            const body = `## 🔨 Add-on Build Results
-
-            - ✅ **Successful**: ${successful}
-            - ❌ **Failed**: ${failed}
-            - ⏭️ **Skipped**: ${skipped}
-
-            ${failed > 0 ? '⚠️ Some builds failed. Check the logs for details.' : '🎉 All builds completed successfully!'}`;
+            let body;
+            if (failed > 0) {
+              body = `## Build Results\n\n- Successful: ${successful}\n- Failed: ${failed}\n- Skipped: ${skipped}\n\nSome builds failed. Check the logs for details.`;
+            } else {
+              body = `## Build Results\n\n- Successful: ${successful}\n- Failed: ${failed}\n- Skipped: ${skipped}\n\nAll builds completed successfully!`;
+            }
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
