@@ -1,5 +1,5 @@
 ---
-version: 2.0.4-b1
+version: 2.0.6
 slug: dnsdist
 name: DNSdist
 description: dnsdist is a highly DNS-, DoS- and abuse-aware loadbalancer.
