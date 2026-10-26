@@ -5,6 +5,7 @@ name: Lint
 env:
   HADOLINT_VERSION: v1.17.2
   SHELLCHECK_OPTS: -e SC1008 -s bash
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   pull_request:
